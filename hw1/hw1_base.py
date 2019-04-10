@@ -223,7 +223,7 @@ def summary_nhood(df, area_num):
     
     f2 = f'nhood_bar_{area_num}.png'
     title = f'Average Number of Crimes by Type (2017 to 2018)\nCommunity Area: {area_num}'
-    mk_bar(filtered, 'Type', 'Average', title, f2)
+    mk_bar(filtered, 'Type', 'Average', title, filename = f2)
 
 
 def get_acs_blk_data(state, county, filename = 'data/census_data.csv'):
