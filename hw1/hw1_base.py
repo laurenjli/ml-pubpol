@@ -2,7 +2,6 @@ import pandas as pd
 import requests
 import json
 import matplotlib.pyplot as plt
-from IPython.display import Image
 import numpy as np
 import geopandas
 from shapely.geometry import Point
@@ -113,7 +112,7 @@ def num_crimes_type(*args):
     return final_counts
 
 
-def mk_table(data, save=False, filename = 'charts/table.png', dpi = 800, scale=False, fontsize = False):
+def mk_table(data, save=False, filename = 'table.png', dpi = 800, scale=False, fontsize = False):
     '''
     This function makes a matplotlib table from a pandas dataframe.
 
@@ -142,7 +141,7 @@ def mk_table(data, save=False, filename = 'charts/table.png', dpi = 800, scale=F
     if save:
         plt.savefig(filename, dpi = dpi, bbox_inces='tight')
 
-def mk_bar(df, x_col, y_col, title, save=False, filename = 'charts/bar.png', dpi = 500):
+def mk_bar(df, x_col, y_col, title, save=False, filename = 'bar.png', dpi = 500):
     '''
     This function makes a horizontal bar chart from a dataframe.
 
@@ -175,7 +174,6 @@ def most_common_yr(df, year = 2018):
     dict_n = []
     tgt_col = f'{year} Total'
 
-    #make pie chart of the 3?
     for c in df['community_area'].unique():
         new = df[df['community_area']== c].sort_values(tgt_col, ascending=False)
         top = new.iloc[0]
@@ -185,7 +183,7 @@ def most_common_yr(df, year = 2018):
     return pd.DataFrame(dict_n)
     
     
-def mk_pie(df, year, save=False, filename = 'charts/pie.png', dpi=500):
+def mk_pie(df, year, save=False, filename = 'pie.png', dpi=500):
     '''
     This function makes a pie chart from a given dataframe.
     
@@ -220,10 +218,10 @@ def summary_nhood(df, area_num):
     filtered = df[df['community_area'] == str(area_num)]
     filtered = filtered.set_index('community_area')
     
-    f1 = f'charts/nhood_{area_num}.png'
+    f1 = f'nhood_{area_num}.png'
     mk_table(filtered, filename = f1)
     
-    f2 = f'charts/nhood_bar_{area_num}.png'
+    f2 = f'nhood_bar_{area_num}.png'
     title = f'Average Number of Crimes by Type (2017 to 2018)\nCommunity Area: {area_num}'
     mk_bar(filtered, 'Type', 'Average', title, f2)
 
@@ -248,12 +246,12 @@ def get_acs_blk_data(state, county, filename = 'data/census_data.csv'):
     count=0
     for t in tracts_list:
         count +=1
-        #print(count)
+        
         blkgrp = f'https://api.census.gov/data/2017/acs/acs5?get=NAME,B01002_001E,B19001_001E,B19001_002E,B19001_003E,B19001_004E,B19001_005E,B19001_006E,B19001_007E,B19001_008E,B19001_009E,B19001_010E,B19001_011E,B19001_012E,B19001_013E,B03002_012E,B03002_002E,B03002_003E,B03002_004E,B03002_006E&for=block+group:*&in=state:{state}+county:{county}+tract:{t}&key=48b45a2062a735ab2c6960def7d8cd8223041485'
-        #print(blkgrp)
+        
         response = requests.get(blkgrp)
         data = response.json()
-        #print(data)
+        
 
         df = pd.DataFrame(data)
 
@@ -324,9 +322,9 @@ def multiple_joins(types, df_list, geofile = 'data/block_bounds.geojson'):
         for df in df_list:
             t = t.upper()
             yr = df['year'].unique()[0]
-            #print(yr)
+            
             tmp = df[df['primary_type'] == t]
-            #print(tmp)
+            
             
             joined = ltlng_to_fips(tmp, geodf)
             
@@ -351,7 +349,6 @@ def build_summary_table(metrics, dict_df, census_df):
     summary_table['Descriptive Metrics: Average'] = metrics
     
     for k, v in dict_df.items():
-        #print(k)
     
         blk_list = get_blk_list(v)
         blk_sum = block_summary(blk_list, census_df)
@@ -441,7 +438,7 @@ def block_summary(block_list, all_census):
               'Percent White': pct_white, 'Percent Black': pct_black, 'Percent Asian': pct_asian}
         
         summary.append(tmp)
-    #print(summary)
+    
     return pd.DataFrame(summary)    
 
 
@@ -460,6 +457,8 @@ def compare_yr(df1, df2, y1, y2, wardnum, end1, end2, timedelta1, timedelta2, tg
     timedelta2: time delta to go back for year2
     tgt_type: list of crime types
     claims: list of claimed changes
+
+    returns: dataframe
     '''
     wardnum = str(wardnum)
     
@@ -535,7 +534,8 @@ def address_info(block_address, df):
     
     block_address: block address
     df: dataframe with all years of data to be examined
-    geofile: geojson file with census block boundaries in the area of interest (Default is Chicago)
+
+    returns: dataframe
     '''
 
     filter_address = df[df['block']==block_address]
