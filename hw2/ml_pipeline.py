@@ -21,6 +21,16 @@ def load_csv(filename):
     '''
     return pd.read_csv(filename)
 
+def load_xls(filename, sheetnum = 0):
+    '''This function reads an xls and returns a dataframe
+    
+    filename: xls file to read
+    sheetnum: sheet number to read, default is first at 0
+
+    return: pandas dataframe
+    '''
+    return pd.read_excel(filename, sheetnum = sheetnum)
+
 
 # EXPLORE DATA
 def mk_hist_facet(df, tgt_col = []):
@@ -38,7 +48,7 @@ def mk_hist_facet(df, tgt_col = []):
 
     df.hist()
 
-def mk_corr_heatmap(df, tgt_col = [], corr_method = 'pearson', cscheme = 'coolwarm')
+def mk_corr_heatmap(df, tgt_col = [], corr_method = 'pearson', cscheme = 'coolwarm'):
     '''
     This function creates a correlation heatmap from a dataframe.
 
