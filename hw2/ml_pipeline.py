@@ -10,6 +10,10 @@ import scipy as sp
 from sklearn.tree import DecisionTreeClassifier # Import Decision Tree Classifier
 from sklearn.model_selection import train_test_split # Import train_test_split function
 from sklearn import metrics #Import scikit-learn metrics module for accuracy calculation
+from sklearn.tree import export_graphviz
+from sklearn.externals.six import StringIO  
+from IPython.display import Image  
+import pydotplus
 
 # READ DATA
 def load_csv(filename):
@@ -21,34 +25,38 @@ def load_csv(filename):
     '''
     return pd.read_csv(filename)
 
-def load_xls(filename, sheetnum = 0):
+def load_xls(filename, sheetnum = 0, header = 1):
     '''This function reads an xls and returns a dataframe
     
     filename: xls file to read
     sheetnum: sheet number to read, default is first at 0
+    header: which row to use as header
 
     return: pandas dataframe
     '''
-    return pd.read_excel(filename, sheetnum = sheetnum)
+    return pd.read_excel(filename, sheetnum = sheetnum, header = header)
 
 
 # EXPLORE DATA
-def mk_hist_facet(df, tgt_col = []):
+def mk_hist_facet(df, tgt_col = [], size= (16,12)):
     '''
     This function plots a histogram for each numeric column in a dataframe.
 
     df: dataframe to plot
     tgt_col: list of columns to filter dataframe if not all columns need to be plotted (default is [], all columns plotted)
-
+    size = size of figure, default is (8, 6)
     return: none
     '''
-
+    
     if tgt_col:
         df = df[tgt_col]
-
+    
+    plt.rcParams['figure.figsize'] = size
     df.hist()
+    
+    
 
-def mk_corr_heatmap(df, tgt_col = [], corr_method = 'pearson', cscheme = 'coolwarm'):
+def mk_corr_heatmap(df, tgt_col = [], corr_method = 'pearson'):
     '''
     This function creates a correlation heatmap from a dataframe.
 
@@ -65,9 +73,10 @@ def mk_corr_heatmap(df, tgt_col = [], corr_method = 'pearson', cscheme = 'coolwa
         df = df[tgt_col]
 
     corr = df.corr(method = corr_method)
-    corr.style.background_gradient(cmap=scheme)
+    
+    return corr
 
-def find_outliers(df, tgt_col = [], thresh = 3):
+def find_outliers(df, tgt_col = [], thresh = 3, ignorena=False):
     '''
     This function finds the outliers according to a given threshold.
 
@@ -81,11 +90,17 @@ def find_outliers(df, tgt_col = [], thresh = 3):
 
     if tgt_col:
         df = df[tgt_col]
+    
+    if ignorena:
+        df.dropna(inplace = True)
+        
+    if np.isnan(np.abs(sp.stats.zscore(df))).any():
+        print('WARNING: NA VALUES EXIST. You can choose to ignore NA values by including ignorena=True as an input to the function.')
 
     return df[(np.abs(sp.stats.zscore(df)) > thresh).any(axis=1)]
 
 
-def rm_outliers(df, tgt_col = [], thresh = 3):
+def rm_outliers(df, tgt_col = [], thresh = 3, ignorena=False):
     '''
     This function removes the outliers according to a given threshold.
 
@@ -99,10 +114,17 @@ def rm_outliers(df, tgt_col = [], thresh = 3):
 
     if tgt_col:
         df = df[tgt_col]
+    
+    if ignorena:
+        df.dropna(inplace = True)
+        
+    if np.isnan(np.abs(sp.stats.zscore(df))).any():
+        print('WARNING: NA VALUES EXIST. You can choose to ignore NA values by including ignorena=True as an input to the function.')
 
     return df[(np.abs(sp.stats.zscore(df)) < thresh).all(axis=1)]
 
-def mk_summary(df, tgt_col = [], stat_types = ['count', 'mean', 'std', 'min', 'max'])
+
+def mk_summary(df, tgt_col = [], stat_types = ['count', 'mean', 'std', 'min', 'max']):
     '''
     This function returns a summary table for a dataframe
 
@@ -122,6 +144,28 @@ def mk_summary(df, tgt_col = [], stat_types = ['count', 'mean', 'std', 'min', 'm
 
 # PRE-PROCESS DATA
 
+def na_exists(df, colname):
+    '''
+    This function returns a boolean for whether or not a pd series contains null values.
+    
+    df: dataframe
+    colname: column of df to look at
+    
+    returns: True or False
+    '''
+    return df[colname].isnull().values.any()
+
+def na_col(df):
+    '''
+    This function identifies which columns in a dataframe have NA values
+    
+    df: dataframe
+    
+    returns: list of colnames with NA values
+    '''
+    
+    return df.columns[df.isna().any()].tolist()
+
 def na_fill(df, fill_method = np.mean):
     '''
     This function fills NA values in a df by given method
@@ -136,7 +180,7 @@ def na_fill(df, fill_method = np.mean):
 
 def missing_fill(df, col, missing_id, fill_method = np.mean):
     '''
-    This function fills NA values in a df by given method
+    This function fills values in a df identified by a specific trait (i.e. 999999) by given method
 
     df: dataframe
     col: column with missing value
@@ -163,3 +207,150 @@ def subset_dropna(df, tgt_col, how_type = 'all'):
     '''
 
     return df.dropna(subset= tgt_col, how= how_type)
+
+
+# Generate features
+
+def feat_binary(df, tgt_col = []):
+    '''
+    This function replaces the categorical variables with one-hot representations.
+    
+    df: dataframe
+    tgt_col: list of colnames to make binary
+    
+    return: full dataframe with dummy variables in new columns
+    '''
+    
+    return pd.get_dummies(df, columns = tgt_col)
+
+
+def feat_sing_disc(df, colname, bucket = 3):
+    '''
+    This function discretizes a column with continuous variables.
+    
+    df: dataframe
+    colname: column name
+    bucket: int with number of buckets or list of floats to use as range
+    labels: list of labels for ranges if want string to show up instead of interval
+    
+    return: df with interval intead of continuous variable
+    '''
+    
+    df[colname] = pd.cut(df[colname], bucket)
+    
+    return df
+
+
+def feat_mult_disc(df, bucketdict, qt = False):
+    '''
+    This function discretizes multiple columns with continuous variables.
+    
+    df: dataframe
+    bucketdict: dictionary containing colnames as keys and bucket int/list as values for range
+    
+    return: df with interval intead of continuous variable
+    '''
+    
+    for k, v in bucketdict.items():
+        if qt:
+            df = feat_sing_qt(df, colname = k, qlist = v)
+        else:
+            df = feat_sing_disc(df, colname = k, bucket = v)
+        
+    return df
+    
+
+def feat_sing_qt(df, colname, qlist = [0, .25, .5, .75, 1.], duplicates='drop'):
+    '''
+    This function discretizes a column with continuous variables into buckets based on quantiles.
+    
+    df: dataframe
+    colname: column name
+    qlist: range of quantiles to use
+    labels: list of labels for ranges if want string to show up instead of interval
+    
+    return: df with interval intead of continuous variable
+    '''
+    
+    df[colname] = pd.qcut(df[colname], q = qlist, duplicates = 'drop')
+    
+    return df
+
+
+# Build Decision Tree
+# referenced: https://www.datacamp.com/community/tutorials/decision-tree-classification-python
+
+def split_data(df, feature_list, label_col, tsize = 0.25, seed = 12345):
+    '''
+    This function splits a dataframe into training and test data.
+    
+    df: dataframe
+    feature_list: list of feature column names to extract from df
+    label_col: name of label column to extract from df
+    tsize: size of test set (default is 0.25 test, 0.75 training)
+    seed: random seed generator
+    
+    return: iterable with arrays for the x_train (feature set in training data), y_train (labels in training data),
+        x_test (feature set in test data), y_test (labels in test data)
+    '''
+    
+    features = df[feature_list]
+    labels = df[label_col]
+    
+    return train_test_split(features, labels, test_size=tsize, random_state=seed)
+
+def build_dtree(feature_train, label_train, criteria = 'entropy', depth = 5):
+    '''
+    This function builds a decision tree using training data
+
+    feature_train: feature set in training data
+    label_train: labels in training data
+    criteria: how to split (entropy or gini)
+    depth: maximum depth of tree
+
+    return: trained decision tree classifier
+    '''
+    tree = DecisionTreeClassifier(criterion= criteria, max_depth= depth)
+
+    fitted = tree.fit(feature_train, label_train)
+
+    return fitted
+    
+def predict_dtree(fitted_tree, feature_test):
+    '''
+    This function predicts the response for the test dataset.
+    
+    fitted_tree: fitted tree classifier
+    feature_test: feature set in test data
+    
+    return: predictions
+    '''
+    return fitted_tree.predict(feature_test)
+
+# Visualize
+
+def graph_tree(tree, feature_list, filename):
+    dot_data = StringIO()
+    export_graphviz(tree, out_file=dot_data,  
+                    filled=True, rounded=True,
+                    special_characters=True,feature_names = feature_list,class_names=['0','1'])
+    graph = pydotplus.graph_from_dot_data(dot_data.getvalue())  
+    graph.write_png(filename)
+    Image(graph.create_png())
+
+    
+# Evaluate
+
+def accuracy(label_test, pred):
+    '''
+    This function finds the accuracy of predictions.
+    
+    label_test: labels in test data
+    pred: predictions
+    
+    return: float
+    '''
+    
+    return metrics.accuracy_score(label_test, pred)
+        
+        
