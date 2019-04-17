@@ -299,7 +299,7 @@ def split_data(df, feature_list, label_col, tsize = 0.25, seed = 12345):
     
     return train_test_split(features, labels, test_size=tsize, random_state=seed)
 
-def build_dtree(feature_train, label_train, criteria = 'entropy', depth = 5):
+def build_dtree(feature_train, label_train, criteria = 'entropy', depth = 5, min_leaf = 500, seed = 12345):
     '''
     This function builds a decision tree using training data
 
@@ -310,7 +310,7 @@ def build_dtree(feature_train, label_train, criteria = 'entropy', depth = 5):
 
     return: trained decision tree classifier
     '''
-    tree = DecisionTreeClassifier(criterion= criteria, max_depth= depth)
+    tree = DecisionTreeClassifier(criterion= criteria, max_depth= depth, min_samples_leaf = min_leaf, random_state= seed)
 
     fitted = tree.fit(feature_train, label_train)
 
@@ -336,7 +336,6 @@ def graph_tree(tree, feature_list, filename):
                     special_characters=True,feature_names = feature_list,class_names=['0','1'])
     graph = pydotplus.graph_from_dot_data(dot_data.getvalue())  
     graph.write_png(filename)
-    Image(graph.create_png())
 
     
 # Evaluate
