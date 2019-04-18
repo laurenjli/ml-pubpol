@@ -318,7 +318,7 @@ def build_dtree(feature_train, label_train, criteria = 'entropy', depth = 5, min
     
 def predictpr_dtree(fitted_tree, feature_test):
     '''
-    This function predicts the probabily of response 1 for the test dataset.
+    This function predicts the probability of response 1 for the test dataset.
     
     fitted_tree: fitted tree classifier
     feature_test: feature set in test data
