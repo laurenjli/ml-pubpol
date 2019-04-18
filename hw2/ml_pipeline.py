@@ -235,8 +235,8 @@ def feat_sing_disc(df, colname, bucket = 3):
     
     return: df with interval intead of continuous variable
     '''
-    
-    df[colname] = pd.cut(df[colname], bucket)
+    colname2 = colname + '_binned'
+    df[colname2] = pd.cut(df[colname], bucket)
     
     return df
 
@@ -271,8 +271,8 @@ def feat_sing_qt(df, colname, qlist = [0, .25, .5, .75, 1.], duplicates='drop'):
     
     return: df with interval intead of continuous variable
     '''
-    
-    df[colname] = pd.qcut(df[colname], q = qlist, duplicates = 'drop')
+    colname2 = colname + '_binned'
+    df[colname2] = pd.qcut(df[colname], q = qlist, duplicates = 'drop')
     
     return df
 
@@ -316,16 +316,16 @@ def build_dtree(feature_train, label_train, criteria = 'entropy', depth = 5, min
 
     return fitted
     
-def predict_dtree(fitted_tree, feature_test):
+def predictpr_dtree(fitted_tree, feature_test):
     '''
-    This function predicts the response for the test dataset.
+    This function predicts the probabily of response 1 for the test dataset.
     
     fitted_tree: fitted tree classifier
     feature_test: feature set in test data
     
     return: predictions
     '''
-    return fitted_tree.predict(feature_test)
+    return fitted_tree.predict_proba(feature_test)[:,1]
 
 # Visualize
 
@@ -340,16 +340,16 @@ def graph_tree(tree, feature_list, filename):
     
 # Evaluate
 
-def accuracy(label_test, pred):
-    '''
-    This function finds the accuracy of predictions.
+def accuracy_pred(true, pred, thresh =0.5):
+    pred_one = []
     
-    label_test: labels in test data
-    pred: predictions
+    for i in pred:
+        if i > thresh:
+            pred_one.append(1)
+        else:
+            pred_one.append(0)
     
-    return: float
-    '''
-    
-    return metrics.accuracy_score(label_test, pred)
+    return metrics.accuracy_score(true, pred_one)
+
         
         
