@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np 
 import matplotlib as plt
 import datetime as dt
-import monthdelta as md
+from dateutil.relativedelta import *
 import scipy as sp
 from sklearn.tree import DecisionTreeClassifier # Import Decision Tree Classifier
 from sklearn.model_selection import train_test_split # Import train_test_split function
@@ -15,7 +15,7 @@ from sklearn import metrics #Import scikit-learn metrics module for accuracy cal
 from sklearn.tree import export_graphviz
 from sklearn.externals.six import StringIO  
 from IPython.display import Image  
-import pydotplus
+#import pydotplus
 
 # READ DATA
 def load_csv(filename):
@@ -363,7 +363,7 @@ def single_train_test_set(df, feature_cols, label_col, split_col, train_start, t
     if 'day' in pred_unit:
         actual_train_end = train_end - dt.timedelta(days=pred_time)
     elif 'month' in pred_unit:
-        actual_train_end = train_end - md.monthdelta(pred_time)
+        actual_train_end = train_end - relativedelta(months = +pred_time)
     elif 'year' in pred_unit.contains:
         actual_train_end = dt.datetime(train_end.year - pred_time, train_end.month, train_end.day)
         
@@ -392,9 +392,9 @@ def dtree_score(feature_train, label_train, feature_test, criteria = 'entropy', 
     '''
     tree = DecisionTreeClassifier(criterion= criteria, max_depth= depth, min_samples_leaf = min_leaf, random_state= seed)
 
-    fitted = tree.fit(feature_train, label_train)
+    tree.fit(feature_train, label_train)
 
-    return predictpr(fitted, feature_test)
+    return tree.predict_proba(feature_test)[:,1]
     
 def predictpr(fitted, feature_test):
     '''
@@ -411,13 +411,13 @@ def predictpr(fitted, feature_test):
 
 # Visualize
 
-def graph_tree(tree, feature_list, filename):
-    dot_data = StringIO()
-    export_graphviz(tree, out_file=dot_data,  
-                    filled=True, rounded=True,
-                    special_characters=True,feature_names = feature_list,class_names=['0','1'])
-    graph = pydotplus.graph_from_dot_data(dot_data.getvalue())  
-    graph.write_png(filename)
+# def graph_tree(tree, feature_list, filename):
+#     dot_data = StringIO()
+#     export_graphviz(tree, out_file=dot_data,  
+#                     filled=True, rounded=True,
+#                     special_characters=True,feature_names = feature_list,class_names=['0','1'])
+#     graph = pydotplus.graph_from_dot_data(dot_data.getvalue())  
+#     graph.write_png(filename)
 
     
 # Evaluate
@@ -432,7 +432,7 @@ def accuracy_at_threshold(y_test, pred_scores, thresh =0.5):
 
     returns accuracy 
     '''
-    pred_one = [1 if x > threshold else 0 for x in pred_scores]
+    pred_one = [1 if x > thresh else 0 for x in pred_scores]
     
     return metrics.accuracy_score(y_test, pred_one)
 
