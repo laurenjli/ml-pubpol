@@ -10,6 +10,9 @@ import datetime as dt
 from dateutil.relativedelta import *
 import scipy as sp
 from sklearn.tree import DecisionTreeClassifier # Import Decision Tree Classifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import LinearSVC
 from sklearn.model_selection import train_test_split # Import train_test_split function
 from sklearn import metrics #Import scikit-learn metrics module for accuracy calculation
 from sklearn.tree import export_graphviz
@@ -375,7 +378,7 @@ def single_train_test_set(df, feature_cols, label_col, split_col, train_start, t
 
 
 
-# Build Decision Tree
+# Build Classifiers
 # referenced: https://www.datacamp.com/community/tutorials/decision-tree-classification-python
 
 
@@ -395,6 +398,66 @@ def dtree_score(feature_train, label_train, feature_test, criteria = 'entropy', 
     tree.fit(feature_train, label_train)
 
     return tree.predict_proba(feature_test)[:,1]
+
+def knn_score(x_train, y_train, x_test, n, weights = 'uniform', distance_metric = 'minkowski', p=2):
+    '''
+    This function builds a KNN classifier.
+    
+    x_train: training set with features
+    y_train: training set with labels
+    n: number of neighbors
+    weights: weight function used in prediction.
+    distance_metric: the distance metric to use
+    p: Power parameter for the Minkowski metric. 
+    
+    returns: fitted KNN classifier
+    '''
+    if distance_metric == 'minkowski':
+        knn = KNeighborsClassifier(n_neighbors=n, weights = weights, p=p, metric= distance_metric)
+        
+    else:
+        knn =KNeighborsClassifier(n_neighbors=n, weights = weights, metric= distance_metric)
+    
+    knn.fit(x_train, y_train)
+    
+    return predictpr(knn, x_test)
+
+def lr_score(x_train, y_train, x_test, p = 'l1', c = 1.0, solver = 'liblinear', seed=12345):
+    '''
+    This function builds a Logistic Regression model.
+    
+    x_train: training set with features
+    y_train: training set with labels
+    p: penalty (l1 or l2)
+    c: Inverse of regularization strength; must be a positive float.
+    solver: Algorithm to use in the optimization problem.
+    seed: random seed
+    
+    returns fitted Logistic Regression
+    '''
+    
+    lr = LogisticRegression(penalty = p, C = c, solver= solver, random_state = seed)
+    lr.fit(x_train, y_train)
+    
+    return predictpr(lr, x_test)
+
+def linsvc_score(x_train, y_train, x_test, p = 'l2', c = 1.0, seed = 12345):
+    '''
+    This function builds a fitted linear SVC
+    
+    x_train: training set with features
+    y_train: training set with labels
+    p: penalty (l2)
+    c: Penalty parameter C of the error term
+    seed: random seed
+    
+    returns fitted linear SVC
+    '''
+    
+    lsvc = LinearSVC(penalty = p, C=c, random_state=seed)
+    lsvc.fit(x_train, y_train)
+    
+    return lsvc.decision_function(x_test)
     
 def predictpr(fitted, feature_test):
     '''
@@ -436,5 +499,87 @@ def accuracy_at_threshold(y_test, pred_scores, thresh =0.5):
     
     return metrics.accuracy_score(y_test, pred_one)
 
-        
-        
+def build_cmatrix(y_test, pred_scores, threshold):
+    '''
+    This function builds a confusion matrix for a given threshold
+    
+    pred_scores: prediction scores
+    y_test: real labels
+    threshold: threshold for predictions
+    
+    returns tuple (true_negatives, false_positive, false_negatives, true_positives)
+    '''
+    pred = [1 if x > threshold else 0 for x in pred_scores]
+    
+    cmatrix = confusion_matrix(y_test, pred)
+    
+    true_negatives, false_positive, false_negatives, true_positives = cmatrix.ravel()
+
+    return (true_negatives, false_positive, false_negatives, true_positives)
+
+def precision_at_threshold(y_test, pred_scores, thresh =0.5):
+    '''
+    This function calculates precision of model given a threshold
+
+    y_test: real labels
+    pred_scores: prediction scores
+    threshold: threshold for predictions
+
+    returns precision
+    '''
+    pred_one = [1 if x > thresh else 0 for x in pred_scores]
+    
+    return metrics.precision_score(y_test, pred_one)
+
+def recall_at_threshold(y_test, pred_scores, thresh =0.5):
+    '''
+    This function calculates recall of model given a threshold
+
+    y_test: real labels
+    pred_scores: prediction scores
+    threshold: threshold for predictions
+
+    returns recall
+    '''
+    pred_one = [1 if x > thresh else 0 for x in pred_scores]
+    
+    return metrics.recall_score(y_test, pred_one)
+
+def f1_at_threshold(y_test, pred_scores, thresh =0.5):
+    '''
+    This function calculates that accuracy of model given a threshold
+
+    y_test: real labels
+    pred_scores: prediction scores
+    threshold: threshold for predictions
+
+    returns f1 score 
+    '''
+    pred_one = [1 if x > thresh else 0 for x in pred_scores]
+    
+    return metrics.f1_score(y_test, pred_one)
+
+def auc_roc(y_test, pred_scores):
+    '''
+    This function calculates the area under the ROC curve
+    
+    y_test: real labels
+    pred_scores: prediction scores
+    
+    returns auc
+    '''
+    
+    return metrics.roc_auc_score(y_test, pred_scores)
+
+def plot_precision_recall(y_test, pred_scores):
+    '''
+    This function plots the precision recall curve
+    
+    y_test: true labels
+    pred_scores: predicted scores
+    
+    return: none
+    '''
+    precision, recall, thresholds = precision_recall_curve(y_test, pred_scores)
+    plt.pyplot.plot(recall, precision, marker='.')
+    plt.pyplot.show()
