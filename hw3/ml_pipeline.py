@@ -320,7 +320,7 @@ def feat_sing_qt(df, colname, qlist = [0, .25, .5, .75, 1.], duplicates='drop'):
     return df
 
 
-def create_label(df, pred_time = 60, pred_unit = 'day'):
+def create_label(df, pred_time = 60, pred_unit = 'day', pred_pos = False):
     '''
     This function creates a label column in the dataset given a time horizon
     
@@ -337,11 +337,18 @@ def create_label(df, pred_time = 60, pred_unit = 'day'):
             diff = pred_time * 30 #convert to days
         elif 'year' in pred_unit:
             diff = pred_time * 365 #convert to days
-            
-        if (row.datefullyfunded - row.date_posted).days <= diff:
-            return 1
+
+        if pred_pos:
+	        if (row.datefullyfunded - row.date_posted).days <= diff:
+	            return 1
+	        else:
+	            return 0
         else:
-            return 0
+        	if (row.datefullyfunded - row.date_posted).days <= diff:
+	            return 0
+	        else:
+	            return 1
+
 
     df['label'] = df.apply(lambda row: label(row, pred_time, pred_unit), axis=1)
     
