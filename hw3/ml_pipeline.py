@@ -477,7 +477,7 @@ def lr_score(x_train, y_train, x_test, p = 'l1', c = 1.0, solver = 'liblinear', 
     
     return predictpr(lr, x_test)
 
-def linsvc_score(x_train, y_train, x_test, p = 'l2', c = 1.0, seed = 12345):
+def linsvc_score(x_train, y_train, x_test, p = 'l2', c = 1.0, seed = 12345, max_iter = 10000):
     '''
     This function builds a fitted linear SVC
     
@@ -490,7 +490,7 @@ def linsvc_score(x_train, y_train, x_test, p = 'l2', c = 1.0, seed = 12345):
     returns fitted linear SVC
     '''
     
-    lsvc = LinearSVC(penalty = p, C=c, random_state=seed)
+    lsvc = LinearSVC(penalty = p, C=c, random_state=seed, max_iter = max_iter)
     lsvc.fit(x_train, y_train)
     
     return lsvc.decision_function(x_test)
@@ -531,7 +531,7 @@ def bagging_score(x_train, y_train, x_test, n, base = None, n_jobs = 1, seed= 12
     bag.fit(x_train, y_train)
     return predictpr(bag, x_test)
 
-def rforest_score(x_train, y_train, x_test, n, criterion = 'entropy', max_depth = None, n_jobs= None, seed=12345):
+def rforest_score(x_train, y_train, x_test, n, criterion = 'entropy', max_depth = None, n_jobs= 1, seed=12345):
     '''
     This function returns probabilities from a Random Forest Classifier
     
@@ -591,7 +591,7 @@ def run_models(models, thresholds, windows, df_final, feature_cols, label_col, s
         test_end = windows[i+1]
         
         #split data
-        x_train,y_train,x_test,y_test = pp.single_train_test_set(df_final, 
+        x_train,y_train,x_test,y_test = single_train_test_set(df_final, 
                                                             feature_cols, 
                                                             label_col, 
                                                             split_col, 
