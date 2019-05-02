@@ -531,7 +531,7 @@ def bagging_score(x_train, y_train, x_test, n, base = None, n_jobs = 1, seed= 12
     bag.fit(x_train, y_train)
     return predictpr(bag, x_test)
 
-def rforest_score(x_train, y_train, x_test, n, criterion = 'entropy', max_depth = None, n_jobs= None, seed=seed):
+def rforest_score(x_train, y_train, x_test, n, criterion = 'entropy', max_depth = None, n_jobs= None, seed=12345):
     '''
     This function returns probabilities from a Random Forest Classifier
     
@@ -705,7 +705,7 @@ def run_models(models, thresholds, windows, df_final, feature_cols, label_col, s
                                       
     resdf = pd.DataFrame(results, columns = ['type', 'details', 'baseline', 'threshold_pct', 'precision', 'recall', 'auc','train_set_num', 'train_start', 'test_start'])    
     if filename:
-        resdf.to_csv(filename)
+        resdf.to_csv(filename, index=False)
     return resdf
 
 # Visualize tree
@@ -791,7 +791,7 @@ def f1_at_threshold(y_test, pred_scores, thresh =0.5):
 
     returns f1 score 
     '''
-    pred_one = [1 if x >== thresh else 0 for x in pred_scores]
+    pred_one = [1 if x >= thresh else 0 for x in pred_scores]
     
     return metrics.f1_score(y_test, pred_one)
 
@@ -889,18 +889,16 @@ def plot_pct_pop(y_test, pred_scores):
     ax1.set_ylabel('precision', color=color)
     ax1.plot(pct_pop, prec, color=color)
     ax1.tick_params(axis='y', labelcolor=color)
-    plt.yticks(np.arange(0, 1, step=0.2))
-
+    plt.yticks(np.arange(0, 1.2, step=0.2))
     ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
 
     color = 'tab:red'
     ax2.set_ylabel('recall', color=color)  # we already handled the x-label with ax1
     ax2.plot(pct_pop, rec, color=color)
     ax2.tick_params(axis='y', labelcolor=color)
-
+    plt.yticks(np.arange(0, 1.2, step=0.2))
     fig.tight_layout()  # otherwise the right y-label is slightly clipped
     plt.show()
 
 
 
-if __name__ == '__main__':
