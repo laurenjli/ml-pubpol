@@ -731,7 +731,7 @@ def accuracy_at_threshold(y_test, pred_scores, thresh =0.5):
 
     returns accuracy 
     '''
-    pred_one = [1 if x > thresh else 0 for x in pred_scores]
+    pred_one = [1 if x >= thresh else 0 for x in pred_scores]
     
     return metrics.accuracy_score(y_test, pred_one)
 
@@ -745,7 +745,7 @@ def build_cmatrix(y_test, pred_scores, threshold):
     
     returns tuple (true_negatives, false_positive, false_negatives, true_positives)
     '''
-    pred = [1 if x > threshold else 0 for x in pred_scores]
+    pred = [1 if x >= threshold else 0 for x in pred_scores]
     
     cmatrix = confusion_matrix(y_test, pred)
     
@@ -763,7 +763,7 @@ def precision_at_threshold(y_test, pred_scores, thresh =0.5):
 
     returns precision
     '''
-    pred_one = [1 if x > thresh else 0 for x in pred_scores]
+    pred_one = [1 if x >= thresh else 0 for x in pred_scores]
     
     return metrics.precision_score(y_test, pred_one)
 
@@ -777,7 +777,7 @@ def recall_at_threshold(y_test, pred_scores, thresh =0.5):
 
     returns recall
     '''
-    pred_one = [1 if x > thresh else 0 for x in pred_scores]
+    pred_one = [1 if x >= thresh else 0 for x in pred_scores]
     
     return metrics.recall_score(y_test, pred_one)
 
@@ -791,7 +791,7 @@ def f1_at_threshold(y_test, pred_scores, thresh =0.5):
 
     returns f1 score 
     '''
-    pred_one = [1 if x > thresh else 0 for x in pred_scores]
+    pred_one = [1 if x >== thresh else 0 for x in pred_scores]
     
     return metrics.f1_score(y_test, pred_one)
 
@@ -869,13 +869,13 @@ def plot_pct_pop(y_test, pred_scores):
     
     return: None
     '''
-    pct_pop = np.array([0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100])
+    pct_pop = np.array([1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 99])
     prec = []
     rec = []
     for each in pct_pop:
         #quantile = 100 - each
         #t = np.percentile(pred_scores, quantile)
-        a, p, r, f1, auc = all_metrics(y_test, final_p, each)
+        a, p, r, f1, auc = all_metrics(y_test, pred_scores, each)
         #p = precision_at_threshold(y_test, pred_scores, t)
         #r = recall_at_threshold(y_test, pred_scores, t)
         prec.append(p)
@@ -889,6 +889,7 @@ def plot_pct_pop(y_test, pred_scores):
     ax1.set_ylabel('precision', color=color)
     ax1.plot(pct_pop, prec, color=color)
     ax1.tick_params(axis='y', labelcolor=color)
+    plt.yticks(np.arange(0, 1, step=0.2))
 
     ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
 
@@ -903,4 +904,3 @@ def plot_pct_pop(y_test, pred_scores):
 
 
 if __name__ == '__main__':
-    
