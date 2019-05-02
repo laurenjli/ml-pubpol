@@ -5,7 +5,7 @@
 
 import pandas as pd 
 import numpy as np 
-import matplotlib as plt
+import matplotlib.pyplot as plt
 import datetime as dt
 from dateutil.relativedelta import *
 import scipy as sp
@@ -13,6 +13,9 @@ from sklearn.tree import DecisionTreeClassifier # Import Decision Tree Classifie
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import LinearSVC
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn.ensemble import BaggingClassifier
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split # Import train_test_split function
 from sklearn import metrics #Import scikit-learn metrics module for accuracy calculation
 from sklearn.tree import export_graphviz
@@ -347,6 +350,39 @@ def create_label(df, pred_time = 60, pred_unit = 'day'):
 
 # Temporal validation
 
+def build_windows(first_date, last_date, split_time, split_type = 'month'):
+    '''
+    This function creates a list of dates to split data on.
+    
+    first_date: date to begin on in data
+    last_date: date to end on in data
+    split_time: number of days/months/years to split data
+    split_type: day/month/year
+    
+    return: list of datetimes
+    '''
+    windows = [first_date]
+    
+    if split_type == 'day':
+        tmp = first_date
+        while tmp < last_date:
+            tmp += dt.timedelta(days =split_time)
+            windows.append(tmp)
+
+    elif split_type == 'month':
+        tmp = first_date
+        while tmp < last_date:
+            tmp += relativedelta(months = +split_time)
+            windows.append(tmp)
+
+    elif split_type == 'year':
+        tmp = first_date
+        while tmp < last_date:
+            tmp = dt.datetime(tmp.year + split_time, tmp.month, tmp.day)
+            windows.append(tmp)
+
+    return windows
+
 def single_train_test_set(df, feature_cols, label_col, split_col, train_start, train_end, test_end, pred_time, pred_unit = 'day'):
     '''
     This function builds a single temporal training and test set
@@ -458,6 +494,63 @@ def linsvc_score(x_train, y_train, x_test, p = 'l2', c = 1.0, seed = 12345):
     lsvc.fit(x_train, y_train)
     
     return lsvc.decision_function(x_test)
+
+def adaboost_score(x_train, y_train, x_test, n, base = None, seed=12345):
+    '''
+    This function creates and predicts scores using bagging.
+    
+    x_train: training set features
+    y_train: training set labels
+    x_test: test set features
+    n_estimators: number of estimators to be in bagging
+    base: base classifier, default None is Dtree
+    n_jobs = jobs to do in parallel
+    
+    returns: predicted scores 
+    '''
+    
+    ada = AdaBoostClassifier(base_estimator = base, n_estimators=n, random_state=seed)
+    ada.fit(x_train, y_train)
+    return predictpr(ada,x_test)
+
+def bagging_score(x_train, y_train, x_test, n, base = None, n_jobs = 1, seed= 12345):
+    '''
+    This function creates and predicts scores using bagging.
+    
+    x_train: training set features
+    y_train: training set labels
+    x_test: test set features
+    n_estimators: number of estimators to be in bagging
+    base: base classifier, default None is Dtree
+    n_jobs = jobs to do in parallel
+    
+    returns: predicted scores 
+    '''
+    
+    bag = BaggingClassifier(base_estimator=base, n_estimators= n, n_jobs = n_jobs, random_state = seed)
+    bag.fit(x_train, y_train)
+    return predictpr(bag, x_test)
+
+def rforest_score(x_train, y_train, x_test, n, criterion = 'entropy', max_depth = None, n_jobs= None, seed=seed):
+    '''
+    This function returns probabilities from a Random Forest Classifier
+    
+    x_train: training set features
+    y_train: training set labels
+    x_test: test set features
+    n: n_estimators
+    criterion: entropy or gig
+    max_depth: depth of tree, None default means nodes are expanded until all leaves are pure or until all leaves contain less than min_samples_split samples.
+    n_jobs: number of jobs to run in parallel for both fit and predict. None means 1
+    seed: random seed
+    
+    return: prediction scores
+    '''
+    
+    rf = RandomForestClassifier(n_estimators=n, criterion= criterion, max_depth=max_depth, n_jobs=n_jobs, random_state=seed)
+    rf.fit(x_train, y_train)
+    
+    return predictpr(rf, x_test)
     
 def predictpr(fitted, feature_test):
     '''
@@ -471,8 +564,151 @@ def predictpr(fitted, feature_test):
     return fitted.predict_proba(feature_test)[:,1]
 
 
+#Run multiple classifiers and save in dataframe
 
-# Visualize
+def run_models(models, thresholds, windows, df_final, feature_cols, label_col, split_col, pred_time, pred_unit = 'day', filename = ''):
+    '''
+    This function runs multiple models with multiple parameters and calculates metrics according to thresholds
+
+    models: list of dictionaries, each one is a model type with parameters
+    thresholds: list of thresholds to calculate metrics against for each model
+    windows: list of start and end dates for time windows
+    feature_cols: list of strings, column names
+    label_col: column name of label
+    split_col: column name of column that has the dates to split on
+    pred_time: prediction window
+    pred_unit: time unit for prediction window
+    filename: csv filename to save results
+
+    returns: dataframe
+    '''
+
+    results = []
+
+    for i in range(1, len(windows)-1):
+        train_start = windows[0]
+        train_end = windows[i]
+        test_end = windows[i+1]
+        
+        #split data
+        x_train,y_train,x_test,y_test = pp.single_train_test_set(df_final, 
+                                                            feature_cols, 
+                                                            label_col, 
+                                                            split_col, 
+                                                            train_start,
+                                                            train_end, 
+                                                            test_end, 
+                                                            pred_time=pred_time, pred_unit = pred_unit)
+        
+        
+        baseline = sum(y_test)/len(y_test)
+        #run models
+        for clf in models:
+            modeltype = clf['type']
+            func = clf['clf']
+            printinfo = 'model: {}, run: {}'.format(modeltype, i)
+            print(printinfo)
+            if modeltype == 'Dtree':
+                seed = clf['seed']
+                for c in clf['criteria']:
+                    for d in clf['depth']:
+                        for l in clf['min_leaf']:
+                            #run model
+                            info = 'criteria: {}, depth: {}, min_leaf: {}, seed: {}'.format(c, d, l, seed)
+                            print(info)
+                            scores = func(x_train, y_train, x_test, criteria = c, depth = d, min_leaf = l, seed=seed)
+                            for pct_pop in thresholds:
+                                acc, prec, rec, f1, auc = all_metrics(y_test, scores, pct_pop)
+                                tmp = {'baseline': baseline, 'train_set_num': i, 'train_start': train_start, 'test_start': train_end,'type': modeltype, 
+                                    'details': info, 'threshold_pct': pct_pop, 'precision': prec, 'recall': rec, 'auc': auc}
+                                results.append(tmp)
+                                
+            elif modeltype == 'LR':
+                seed = clf['seed']
+                for p in clf['p']:
+                    for c in clf['c']:
+                        for s in clf['solver']:
+                            #print(p)
+                            info = 'penalty: {}, c: {}, solver: {}, seed: {}'.format(p, c, s, seed)
+                            print(info)
+                            scores = func(x_train, y_train, x_test, p = p, c = c, solver = s, seed=seed)
+                            for pct_pop in thresholds:
+                                acc, prec, rec, f1, auc = all_metrics(y_test, scores, pct_pop)
+                                tmp = {'baseline': baseline,'train_set_num': i, 'train_start': train_start, 'test_start': train_end,'type': modeltype, 
+                                    'details': info, 'threshold_pct': pct_pop, 'precision': prec, 'recall': rec, 'auc': auc}
+                                results.append(tmp)
+                            
+            elif modeltype == 'SVM':
+                seed = clf['seed']
+                for p in clf['p']:
+                    for c in clf['c']:
+                        info = 'penalty: {}, c: {}, seed: {}'.format(p, c, seed)
+                        print(info)
+                        scores = func(x_train, y_train, x_test, p =p, c=c, seed=seed)
+                        for pct_pop in thresholds:
+                            acc, prec, rec, f1, auc = all_metrics(y_test, scores, pct_pop)
+                            tmp = {'baseline': baseline,'train_set_num': i, 'train_start': train_start, 'test_start': train_end,'type': modeltype, 
+                                'details': info, 'threshold_pct': pct_pop, 'precision': prec, 'recall': rec, 'auc': auc}
+                            results.append(tmp)
+                                
+            elif modeltype == 'KNN':
+                for n in clf['n']:
+                    for w in clf['weights']:
+                        for d in clf['distance_metric']:
+                            for p in clf['p']:
+                                info = 'n: {}, weights: {}, distance: {}, p: {}'.format(n, w, d, p)
+                                print(info)
+                                scores = func(x_train, y_train, x_test, n = n, weights = w, distance_metric = d, p=p)
+                                #print(list(scores))
+                                for pct_pop in thresholds:
+                                    acc, prec, rec, f1, auc = all_metrics(y_test, scores, pct_pop)
+                                    tmp = {'baseline': baseline,'train_set_num': i, 'train_start': train_start, 'test_start': train_end,'type': modeltype, 
+                                        'details': info, 'threshold_pct': pct_pop, 'precision': prec, 'recall': rec, 'auc': auc}
+                                    results.append(tmp)
+            
+            elif modeltype == 'Bagging_dtree':
+                seed = clf['seed']
+                for n in clf['n']:
+                    for b in clf['base']:
+                        info = 'n: {}, base: {}'.format(n,b)
+                        scores = func(x_train, y_train, x_test, n = n, base = b, seed=seed)
+                        for pct_pop in thresholds:
+                            acc, prec, rec, f1, auc = all_metrics(y_test, scores, pct_pop)
+                            tmp = {'baseline': baseline,'train_set_num': i, 'train_start': train_start, 'test_start': train_end,'type': modeltype, 
+                                'details': info, 'threshold_pct': pct_pop, 'precision': prec, 'recall': rec, 'auc': auc}
+                            results.append(tmp)
+            
+            elif modeltype == 'ADABoost_dtree':
+                seed = clf['seed']
+                for n in clf['n']:
+                    for b in clf['base']:
+                        info = 'n: {}, base: {}'.format(n,b)
+                        scores = func(x_train, y_train, x_test, n = n, base = b, seed=seed)
+                        for pct_pop in thresholds:
+                            acc, prec, rec, f1, auc = all_metrics(y_test, scores, pct_pop)
+                            tmp = {'baseline': baseline,'train_set_num': i, 'train_start': train_start, 'test_start': train_end,'type': modeltype, 
+                                'details': info, 'threshold_pct': pct_pop, 'precision': prec, 'recall': rec, 'auc': auc}
+                            results.append(tmp)
+                
+                
+            elif modeltype == 'Random Forest':
+                seed = clf['seed']
+                for n in clf['n']:
+                    for c in clf['criterion']:
+                        info = 'n: {}, criterion: {}'.format(n,c)
+                        scores = func(x_train, y_train, x_test, n = n, criterion = c, seed=seed)
+                        for pct_pop in thresholds:
+                            acc, prec, rec, f1, auc = all_metrics(y_test, scores, pct_pop)
+                            tmp = {'baseline': baseline,'train_set_num': i, 'train_start': train_start, 'test_start': train_end,'type': modeltype, 
+                                'details': info, 'threshold_pct': pct_pop, 'precision': prec, 'recall': rec, 'auc': auc}
+                            results.append(tmp)
+                                      
+    resdf = pd.DataFrame(results, columns = ['type', 'details', 'baseline', 'threshold_pct', 'precision', 'recall', 'auc','train_set_num', 'train_start', 'test_start'])    
+    if filename:
+        resdf.to_csv(filename)
+    return resdf
+
+# Visualize tree
 
 # def graph_tree(tree, feature_list, filename):
 #     dot_data = StringIO()
@@ -571,6 +807,44 @@ def auc_roc(y_test, pred_scores):
     
     return metrics.roc_auc_score(y_test, pred_scores)
 
+def scores_pctpop(pred_scores, pct_pop):
+    
+    #identify number of positives to have given target percent of population
+    num_pos = int(round(len(pred_scores)*(pct_pop/100),0))
+    #turn predictions into series
+    pred_df = pd.Series(pred_scores)
+    idx = pred_df.sort_values(ascending=False)[0:num_pos].index 
+    
+    #set all observations to 0
+    pred_df.iloc[:] = 0
+    #set observations by index (the ones ranked high enough) to 1
+    pred_df.iloc[idx] = 1
+    
+    return pred_df
+
+def all_metrics(y_test, pred_scores, t, target_pop = True):
+    '''
+    This function returns the accuracy, precision, recall, f1, and auc_roc for a given target percent of population
+    
+    y_test: tests set labels
+    pred_scores: prediction scores
+    t: threshold (either decimal as threshold or integer as % target population (50 is 50%))
+    target_pop: boolean to decide whether to use t as threshold or target pop
+    
+    return: tuple with accuracy, precision, recall, f1, and auc_roc
+    '''
+    if target_pop:
+        pred_scores = scores_pctpop(pred_scores, t)
+        t = 0.5
+
+    acc = accuracy_at_threshold(y_test, pred_scores, t)
+    prec = precision_at_threshold(y_test, pred_scores, t)
+    rec = recall_at_threshold(y_test, pred_scores, t)
+    f1 = f1_at_threshold(y_test, pred_scores, t)
+    auc = auc_roc(y_test, pred_scores)
+    
+    return (acc, prec, rec, f1, auc)
+
 def plot_precision_recall(y_test, pred_scores):
     '''
     This function plots the precision recall curve
@@ -580,6 +854,53 @@ def plot_precision_recall(y_test, pred_scores):
     
     return: none
     '''
-    precision, recall, thresholds = precision_recall_curve(y_test, pred_scores)
-    plt.pyplot.plot(recall, precision, marker='.')
-    plt.pyplot.show()
+    precision, recall, thresholds = metrics.precision_recall_curve(y_test, pred_scores)
+    plt.plot(recall, precision, marker='.')
+    plt.xlabel('Recall')
+    plt.ylabel('Precision')
+    plt.show()
+
+def plot_pct_pop(y_test, pred_scores):
+    '''
+    This function plots precision and recall on two axes with percent of population as the x-axis.
+    
+    y_test: test set labels
+    pred_scores: predicted scores
+    
+    return: None
+    '''
+    pct_pop = np.array([0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100])
+    prec = []
+    rec = []
+    for each in pct_pop:
+        #quantile = 100 - each
+        #t = np.percentile(pred_scores, quantile)
+        a, p, r, f1, auc = all_metrics(y_test, final_p, each)
+        #p = precision_at_threshold(y_test, pred_scores, t)
+        #r = recall_at_threshold(y_test, pred_scores, t)
+        prec.append(p)
+        rec.append(r)
+    
+    #pct_pop = 1-thresholds
+    fig, ax1 = plt.subplots()
+
+    color = 'tab:blue'
+    ax1.set_xlabel('percent of population')
+    ax1.set_ylabel('precision', color=color)
+    ax1.plot(pct_pop, prec, color=color)
+    ax1.tick_params(axis='y', labelcolor=color)
+
+    ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
+
+    color = 'tab:red'
+    ax2.set_ylabel('recall', color=color)  # we already handled the x-label with ax1
+    ax2.plot(pct_pop, rec, color=color)
+    ax2.tick_params(axis='y', labelcolor=color)
+
+    fig.tight_layout()  # otherwise the right y-label is slightly clipped
+    plt.show()
+
+
+
+if __name__ == '__main__':
+    
