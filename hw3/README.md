@@ -10,6 +10,6 @@ ml_pipeline.py: file containing helper functions used for hw3
 
 hw3_writeup.pdf: report that compares the performance of the different classifiers across all the metrics for the data 
 
-/data/finalrun.csv: csv containing model results for all iterations
+/data/finalrun2.csv: csv containing model results for all iterations
 
 /data/projects_2012_2013.csv: csv containing donorschoose data with dates posted and funded
