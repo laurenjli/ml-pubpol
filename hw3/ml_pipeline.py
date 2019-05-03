@@ -21,7 +21,7 @@ from sklearn import metrics #Import scikit-learn metrics module for accuracy cal
 from sklearn.tree import export_graphviz
 from sklearn.externals.six import StringIO  
 from IPython.display import Image  
-#import pydotplus
+import pydotplus
 
 # READ DATA
 def load_csv(filename):
@@ -717,13 +717,13 @@ def run_models(models, thresholds, windows, df_final, feature_cols, label_col, s
 
 # Visualize tree
 
-# def graph_tree(tree, feature_list, filename):
-#     dot_data = StringIO()
-#     export_graphviz(tree, out_file=dot_data,  
-#                     filled=True, rounded=True,
-#                     special_characters=True,feature_names = feature_list,class_names=['0','1'])
-#     graph = pydotplus.graph_from_dot_data(dot_data.getvalue())  
-#     graph.write_png(filename)
+def graph_tree(tree, feature_list, filename):
+    dot_data = StringIO()
+    export_graphviz(tree, out_file=dot_data,  
+                    filled=True, rounded=True,
+                    special_characters=True,feature_names = feature_list,class_names=['0','1'])
+    graph = pydotplus.graph_from_dot_data(dot_data.getvalue())  
+    graph.write_png(filename)
 
     
 # Evaluate
