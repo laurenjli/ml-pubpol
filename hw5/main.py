@@ -43,5 +43,5 @@ if __name__ == '__main__':
 	#models = [{'type': 'Dtree', 'clf': DecisionTreeClassifier(), 'params': {'criterion': ['entropy', 'gini'], 'max_depth': [10,20,30],'min_samples_split': [100, 300,500], 'random_state': [seed]}}]
 	thresholds = [1, 2, 5, 10, 20,30, 50]
 
-	pp.run_models(models, thresholds, windows, df, feature_cols, label_col, split_col, impute_info, bucketdict, top_k, pred_time, pred_unit = 'day', filename = './data/finalrun')
+	pp.run_models(models, thresholds, windows, df, feature_cols, label_col, split_col, impute_info, bucketdict, top_k, pred_time, pred_unit = 'day', filename = './data/finalrun.csv')
 
