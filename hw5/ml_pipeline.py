@@ -544,9 +544,9 @@ def run_models(models, thresholds, windows, df_final, feature_cols, label_col, s
                                                             pred_time=pred_time, pred_unit = pred_unit)
         
         # impute missing data
-        for i in impute_info:
-            func = i[0]
-            for col in i[1]:
+        for im in impute_info:
+            func = im[0]
+            for col in im[1]:
                 x_train = na_fill_col(x_train, col, func)
                 y_train = na_fill_col(y_train, col, func)
         for k,v in top_k.items():
@@ -563,7 +563,10 @@ def run_models(models, thresholds, windows, df_final, feature_cols, label_col, s
         # create binary features
         x_train = feat_binary(x_train, list(x_train.columns))
         y_train = feat_binary(y_train, list(y_train.columns))
-        #print(set(x_train.columns) - set(y_train.columns))
+        extra_x = set(x_train.columns) - set(y_train.columns)
+        x_train = x_train.drop(extra_x, axis=1)
+        extra_y = set(y_train.columns) - set(x_train.columns)
+        y_train = y_train.drop(extra_y, axis=1)
 
         baseline = sum(y_test)/len(y_test)
         #run models
