@@ -587,9 +587,11 @@ def run_models(models, thresholds, windows, df_final, feature_cols, label_col, s
                         'details': p, 'threshold_pct': pct_pop, 'precision': prec, 'recall': rec, 'auc': auc}
                     results.append(tmp)
                                       
-    resdf = pd.DataFrame(results, columns = ['type', 'details', 'baseline', 'threshold_pct', 'precision', 'recall', 'auc','train_set_num', 'train_start', 'test_start'])    
-    if filename: #save to file
-        resdf.to_csv(filename, index=False)
+        resdf = pd.DataFrame(results, columns = ['type', 'details', 'baseline', 'threshold_pct', 'precision', 'recall', 'auc','train_set_num', 'train_start', 'test_start'])    
+        if filename: #save to file
+            f = filename + '_training{}.csv'.format(i)
+            resdf.to_csv(f, index=False)
+            print('Saved to file {}'.format(f))
     return resdf
 
 # Visualize tree
