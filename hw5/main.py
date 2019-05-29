@@ -31,11 +31,11 @@ if __name__ == '__main__':
     {'type': 'Dtree', 'clf': DecisionTreeClassifier(), 'params': {'criterion': ['entropy', 'gini'], 'max_depth': [10,20,30],'min_samples_split': [100, 300,500], 'random_state': [seed]}},
     {'type': 'LR', 'clf': LogisticRegression(), 'params':{'penalty': ['l1','l2'], 'C': [0.1, 1.0, 10.0, 100.0], 'solver': ['liblinear'], 'random_state': [seed]}},
     {'type': 'SVM', 'clf': LinearSVC(), 'params':{'penalty': ['l2'], 'C': [0.1, 1.0, 10.0, 100.0], 'random_state': [seed]}},
-    {'type': 'Bagging_dtree', 'clf': BaggingClassifier(), 'params':{'n_estimators': [100, 500, 1000], 'base_estimator':[None], 'random_state':[seed]}},
+    {'type': 'Bagging_dtree', 'clf': BaggingClassifier(), 'params':{'n_estimators': [100, 500, 1000], 'base_estimator':[None], 'random_state':[seed], 'n_jobs':[5]}},
     {'type': 'ADABoost_dtree', 'clf': AdaBoostClassifier(), 'params':{'n_estimators': [100, 500, 1000], 'base_estimator':[None], 'random_state':[seed]}},
     {'type': 'GBoost', 'clf': GradientBoostingClassifier(), 'params': {'n_estimators': [100, 500, 1000], 'min_samples_split': [100, 300,500], 'random_state':[seed]}},
     {'type': 'ExtraTrees', 'clf': ExtraTreesClassifier(),'params': {'n_estimators': [100, 500, 1000], 'criterion': ['entropy', 'gini'],'min_samples_split': [100, 300,500], 'max_depth': [10,20,30],'random_state':[seed], 'n_jobs':[5]}},
-    {'type': 'Random Forest', 'clf': RandomForestClassifier(), 'params':{'n_estimators': [100, 500, 1000], 'criterion': ['entropy', 'gini'], 'random_state': [seed]}},
+    {'type': 'Random Forest', 'clf': RandomForestClassifier(), 'params':{'n_estimators': [100, 500, 1000], 'criterion': ['entropy', 'gini'], 'random_state': [seed], 'n_jobs':[5]}},
     {'type': 'KNN', 'clf': KNeighborsClassifier(), 'params':{'n_neighbors': [5,7], 'weights': ['uniform','distance'], 'metric':['minkowski'],'p': [1,2], 'n_jobs': [4]}},
     {'type': 'NB', 'clf': GaussianNB(),'params':{'priors':[None]}}
 	]
