@@ -13,3 +13,5 @@ hw3_writeup.pdf: report that compares the performance of the different classifie
 /data/finalrun2.csv: csv containing model results for all iterations
 
 /data/projects_2012_2013.csv: csv containing donorschoose data with dates posted and funded
+
+/source/main.py: file to run full pipeline 

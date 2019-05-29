@@ -509,7 +509,7 @@ def predictpr(fitted, feature_test):
 
 #Run multiple classifiers and save in dataframe
 
-def run_models(models, thresholds, windows, df_final, feature_cols, label_col, split_col, impute_info, bucketdict, top_k, pred_time, pred_unit = 'day', filename = ''):
+def run_models(models, thresholds, windows, start_index, df_final, feature_cols, label_col, split_col, impute_info, bucketdict, top_k, pred_time, pred_unit = 'day', filename = '', return_scores = False):
     '''
     This function runs multiple models with multiple parameters and calculates metrics according to thresholds
 
@@ -528,7 +528,7 @@ def run_models(models, thresholds, windows, df_final, feature_cols, label_col, s
 
     results = []
     # for each window of time
-    for i in range(1, len(windows)-1):
+    for i in range(start_index, len(windows)-1):
         train_start = windows[0]
         train_end = windows[i]
         test_end = windows[i+1]
@@ -577,10 +577,16 @@ def run_models(models, thresholds, windows, df_final, feature_cols, label_col, s
 
             for p in ParameterGrid(param_dict): #create list of dictionaries with parameters for given modeltype
                 print('{}: {}'.format(modeltype, p))
+                # fit clf and predict scores
                 if modeltype == 'SVM': #need to use a different predict function
                     scores = linsvc_score(clf, p, x_train, x_test, y_train)
                 else:
                     scores = clf_score(clf, p, x_train, x_test, y_train)
+
+                # if running model to receive scores and test set (i.e. for precision recall graph)
+                if return_scores:
+                    return (y_test, scores)
+
                 for pct_pop in thresholds:
                     acc, prec, rec, f1, auc = all_metrics(y_test, scores, pct_pop)
                     tmp = {'baseline': baseline, 'train_set_num': i, 'train_start': train_start, 'test_start': train_end,'type': modeltype, 
@@ -753,6 +759,7 @@ def plot_pct_pop(y_test, pred_scores):
     
     return: None
     '''
+    #calculate precision and recall for each threshold
     pct_pop = np.array([1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 99])
     prec = []
     rec = []
@@ -762,7 +769,7 @@ def plot_pct_pop(y_test, pred_scores):
         rec.append(r)
     
     fig, ax1 = plt.subplots()
-
+    #plot precision
     color = 'tab:blue'
     ax1.set_xlabel('percent of population')
     ax1.set_ylabel('precision', color=color)
@@ -770,7 +777,7 @@ def plot_pct_pop(y_test, pred_scores):
     ax1.tick_params(axis='y', labelcolor=color)
     plt.yticks(np.arange(0, 1.2, step=0.2))
     ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
-
+    #plot recall
     color = 'tab:red'
     ax2.set_ylabel('recall', color=color)  # we already handled the x-label with ax1
     ax2.plot(pct_pop, rec, color=color)
