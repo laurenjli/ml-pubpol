@@ -585,7 +585,7 @@ def run_models(models, thresholds, windows, start_index, df_final, feature_cols,
 
                 # if running model to receive scores and test set (i.e. for precision recall graph)
                 if return_scores:
-                    return (y_test, scores)
+                    return (y_train, y_test, scores)
 
                 for pct_pop in thresholds:
                     acc, prec, rec, f1, auc = all_metrics(y_test, scores, pct_pop)
