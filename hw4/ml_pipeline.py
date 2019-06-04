@@ -16,6 +16,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.svm import LinearSVC
 from sklearn.ensemble import AdaBoostClassifier, GradientBoostingClassifier, BaggingClassifier, RandomForestClassifier, ExtraTreesClassifier
 from sklearn.naive_bayes import GaussianNB
+from sklearn.cluster import KMeans
 from sklearn.model_selection import ParameterGrid # Import train_test_split function
 from sklearn import metrics #Import scikit-learn metrics module for accuracy calculation
 from sklearn.tree import export_graphviz
@@ -457,15 +458,14 @@ def single_train_test_set(df, feature_cols, label_col, split_col, train_start, t
 
 def clf_score(clf, params, feature_train, label_train, feature_test):
     '''
-    This function builds a classifier using training data and returns the score on test data
+    This function builds a decision tree using training data
 
-    clf: classifier
-    params: params for classifier
     feature_train: feature set in training data
     label_train: labels in training data
-    feature_test: feature set in test data
+    criteria: how to split (entropy or gini)
+    depth: maximum depth of tree 
 
-    return: probability score of label 1
+    return: trained decision tree classifier
     '''
     #set parameters
     clf.set_params(**params)
@@ -477,13 +477,13 @@ def clf_score(clf, params, feature_train, label_train, feature_test):
 
 def linsvc_score(clf,params,x_train, y_train, x_test):
     '''
-    This function builds a fitted linear SVC and returns the decision score
+    This function builds a fitted linear SVC
     
-    clf: classifier
-    params: params for classifier
     x_train: training set with features
     y_train: training set with labels
-    x_test: feature set in test data
+    p: penalty (l2)
+    c: Penalty parameter C of the error term
+    seed: random seed
     
     returns fitted linear SVC
     '''
@@ -508,9 +508,114 @@ def predictpr(fitted, feature_test):
     return fitted.predict_proba(feature_test)[:,1]
 
 
+## KMEANS FUNCTIONS ##
+
+def kmeans_label(clf, params, feature_df):
+    '''
+    This function uses kmeans to cluster data points.
+
+    clf: Kmeans classifier
+    params: dictionary of params for classifier
+    feature_df: df with features
+    
+    returns: Kmeans labels
+    '''
+    # set params
+    clf.set_params(**params)
+    #fit classifier
+    clf.fit(feature_df)
+
+    return pd.Series(clf.labels_)
+
+def summarize_kmeans_features(df_pred, pred_col, method = 'mean'):
+    '''
+    This function summarizes the features, grouped by the label
+    
+    df_pred: df with predictions
+    pred_col: column name of predictions
+    method: method to aggregate, default is mean
+    
+    returns: summary table
+    '''
+    return df_pred.groupby(pred_col).agg([method]).astype(str).T
+
+def cluster_size(df_pred, pred_col):
+    '''
+    This function provides summary stats for the cluster, i.e. how many of each label
+    
+    returns: summary table
+    '''
+    return df_pred.groupby(pred_col)[pred_col].count()
+
+def merge_clusters(df_pred, pred_col, class_labels, target_label):
+    '''
+    This function merges two or more clusters into one
+    
+    df_pred: df with predictions
+    pred_col: colname of predictions
+    class_labels: labels to turn into one cluster
+    
+    return: df with merged clusters
+    '''
+    
+    tmp = df_pred.copy()
+    
+    # for each class_label, change to target_label
+    for c in class_labels:
+        idx = tmp[tmp[pred_col]==c].index
+        tmp.iloc[idx] = target_label
+    
+    return tmp
+
+def split_cluster(df_pred, pred_col, features, split_k, split_params, target_labels):
+    '''
+    This function splits a cluster into many.
+    
+    df_pred: df with predictions
+    pred_col: colname of predictions
+    features: features list
+    split_k: class to split on
+    split_params: params to pass to new Kmeans clustering classifier
+    target_labels: dictionary of labels for new clusters
+    
+    returns: df with all labels (original and new split on split_k)
+    '''
+    # create a copy df for new split
+    tmp = df_pred.copy()
+    tmp = tmp[tmp[pred_col] == split_k]
+    tmp = tmp.reset_index()
+    # original index of this cluster
+    idx = df_pred[df_pred[pred_col] == split_k].index
+
+    tmp['split_pred'] = kmeans_label(KMeans(), split_params, tmp[features])
+
+    new_class = tmp['split_pred'].unique()
+    for i in new_class:
+        newidx = tmp[tmp['split_pred']==i].index
+        tmp['split_pred'].iloc[newidx] = target_labels.pop(0)
+    
+    df_pred[pred_col].iloc[idx] = list(tmp['split_pred'])
+    
+    return df_pred
+    
+
+def plot_2d_cluster(df_pred, pred_col, col1, col2):
+    
+    groups = df_pred.groupby(pred_col)
+    num_k = len(df_pred[pred_col].unique())
+    # Plot
+    fig, ax = plt.subplots()
+    for pred_class, group in groups:
+        ax.scatter(group[col1], group[col2], label=pred_class)
+    ax.legend()
+    plt.title("{} vs {} with {} classes".format(col1, col2, num_k))
+    plt.xlabel('{}'.format(col1))
+    plt.ylabel('{}'.format(col2))
+    plt.show()
+
 #Run multiple classifiers and save in dataframe
 
-def run_models(models, thresholds, windows, df_final, feature_cols, label_col, split_col, impute_info, bucketdict, top_k, pred_time, pred_unit = 'day', filename = ''):
+def run_models(models, thresholds, windows, start_index, df_final, feature_cols, label_col, split_col, impute_info, bucketdict, top_k, pred_time, pred_unit = 'day', filename = '', return_scores = False):
     '''
     This function runs multiple models with multiple parameters and calculates metrics according to thresholds
 
@@ -529,7 +634,7 @@ def run_models(models, thresholds, windows, df_final, feature_cols, label_col, s
 
     results = []
     # for each window of time
-    for i in range(1, len(windows)-1):
+    for i in range(start_index, len(windows)-1):
         train_start = windows[0]
         train_end = windows[i]
         test_end = windows[i+1]
@@ -578,10 +683,16 @@ def run_models(models, thresholds, windows, df_final, feature_cols, label_col, s
 
             for p in ParameterGrid(param_dict): #create list of dictionaries with parameters for given modeltype
                 print('{}: {}'.format(modeltype, p))
+                # fit clf and predict scores
                 if modeltype == 'SVM': #need to use a different predict function
                     scores = linsvc_score(clf, p, x_train, x_test, y_train)
                 else:
                     scores = clf_score(clf, p, x_train, x_test, y_train)
+
+                # if running model to receive scores and test set (i.e. for precision recall graph)
+                if return_scores:
+                    return (y_train, y_test, scores)
+
                 for pct_pop in thresholds:
                     acc, prec, rec, f1, auc = all_metrics(y_test, scores, pct_pop)
                     tmp = {'baseline': baseline, 'train_set_num': i, 'train_start': train_start, 'test_start': train_end,'type': modeltype, 
@@ -754,6 +865,7 @@ def plot_pct_pop(y_test, pred_scores):
     
     return: None
     '''
+    #calculate precision and recall for each threshold
     pct_pop = np.array([1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 99])
     prec = []
     rec = []
@@ -763,7 +875,7 @@ def plot_pct_pop(y_test, pred_scores):
         rec.append(r)
     
     fig, ax1 = plt.subplots()
-
+    #plot precision
     color = 'tab:blue'
     ax1.set_xlabel('percent of population')
     ax1.set_ylabel('precision', color=color)
@@ -771,7 +883,7 @@ def plot_pct_pop(y_test, pred_scores):
     ax1.tick_params(axis='y', labelcolor=color)
     plt.yticks(np.arange(0, 1.2, step=0.2))
     ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
-
+    #plot recall
     color = 'tab:red'
     ax2.set_ylabel('recall', color=color)  # we already handled the x-label with ax1
     ax2.plot(pct_pop, rec, color=color)
