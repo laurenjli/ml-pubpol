@@ -510,6 +510,7 @@ def predictpr(fitted, feature_test):
 
 ## KMEANS FUNCTIONS ##
 
+
 def kmeans_label(clf, params, feature_df):
     '''
     This function uses kmeans to cluster data points.
@@ -525,7 +526,7 @@ def kmeans_label(clf, params, feature_df):
     #fit classifier
     clf.fit(feature_df)
 
-    return pd.Series(clf.labels_)
+    return list(clf.labels_)
 
 def summarize_kmeans_features(df_pred, pred_col, method = 'mean'):
     '''
@@ -590,9 +591,11 @@ def split_cluster(df_pred, pred_col, features, split_k, split_params, target_lab
     tmp['split_pred'] = kmeans_label(KMeans(), split_params, tmp[features])
 
     new_class = tmp['split_pred'].unique()
+    j=0
     for i in new_class:
         newidx = tmp[tmp['split_pred']==i].index
-        tmp['split_pred'].iloc[newidx] = target_labels.pop(0)
+        tmp['split_pred'].iloc[newidx] = target_labels[j]
+        j+=1
     
     df_pred[pred_col].iloc[idx] = list(tmp['split_pred'])
     
